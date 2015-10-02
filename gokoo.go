@@ -253,10 +253,13 @@ func (gt *GokooTable) secondaryIndex(i1 int, f []byte) int {
 // access will provide indexes for occupied and bucket to use for access.
 func (gt *GokooTable) access(i int, n int) (int, int, int) {
 
+	// index is the index in the occupied slice, begin and end the start and
+	// end indexes in the buckets slice for the fingerprint
 	index := i*gt.nSlots + n
 	begin := index * gt.nBytes
 	end := begin + gt.nBytes
 
+	// return all three indices
 	return index, begin, end
 }
 
