@@ -243,20 +243,95 @@ func (gt *GokooTable) fingerPrint(hash []byte) []byte {
 
 // add will add an item to the given bucket, if possible.
 func (gt *GokooTable) add(i int, f []byte) bool {
-	return true
+
+	// check all slots for this bucket
+	for n := 0; n < gt.nSlots; n++ {
+
+		// start index and stop index
+		index := i + n
+		begin := index * gt.nBytes
+		cutoff := begin + gt.nBytes
+
+		// check if spot is free
+		if gt.occupied[index] {
+			continue
+		}
+
+		// save fingerprint and return
+		gt.occupied[index] = true
+		gt.buckets[begin:cutoff] = f
+		return true
+	}
+
+	// we could not insert it anywhere
+	return false
 }
 
 // has will check if a given bucket contains fingerprint f.
 func (gt *GokooTable) has(i int, f []byte) bool {
-	return true
+
+	// check all slots for this bucket
+	for n := 0; n < gt.nSlots; n++ {
+
+		// start index and stop index
+		index := i + n
+		begin := index * gt.nBytes
+		cutoff := begin + gt.nBytes
+
+		// check if spot is used
+		if !gt.occupied[index] {
+			continue
+		}
+
+		// check if values match
+		if gt.buckets[begin:cutoff] == f {
+			return true
+		}
+	}
+
+	// we could not find the fingerpnint
+	return false
 }
 
 // del will delete an item from the given bucket, if possible.
 func (gt *GokooTable) del(i int, f []byte) bool {
-	return true
+
+	// check all slots for this bucket
+	for n := 0; n < gt.nSlots; n++ {
+
+		// start and stop indexes
+		index := i + n
+		begin := index * gt.nBytes
+		cutoff := begin + gt.nBytes
+
+		// check if spot is used
+		if !gt.occupied[index] {
+			continue
+		}
+
+		// check if values match
+		if gt.bucktes[begin:cutoff] == f {
+			gt.occupied[index] = false
+			return true
+		}
+	}
+
+	// we could not delete the fingerprint
+	return false
 }
 
 // evict will evict a fingerprint from the bucket to insert the new one.
 func (gt *GokooTable) evict(i int, f []byte) []byte {
-	return []byte{}
+
+	// pick a random slot for this bucket
+	slot := rand.Int() % gt.nSlots
+	begin := (i + slot) * gt.nBytes
+	cutoff := begin + gt.nBytes
+
+	// get the old fingerprint and replace
+	fOld := gt.buckets[begin:cutoff]
+	gt.buckets[begin:cutoff] = f
+
+	// return old fingerprint
+	return fOld
 }
