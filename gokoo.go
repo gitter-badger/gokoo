@@ -32,17 +32,23 @@ type GokooTable struct {
 	buf      *bytes.Buffer
 }
 
+// DummyHash is a wrapper for a dummy function that will always return 8 bytes
+// and will use as many of the first 8 input bytes as avaiable.
 func DummyHash(input []byte) []byte {
 	output := make([]byte, 8)
 	copy(output, input)
 	return output
 }
 
+// Sha256Hash is a wrapper around the standard library SHA-256 hash that will
+// return a slice instead of an array of bytes.
 func Sha256Hash(input []byte) []byte {
 	array := sha256.Sum256(input)
 	return array[:]
 }
 
+// SipHash is a wrapper around the siphash library SIP-2,4 implementation that
+// will return a byte slice instead of an integer.
 func SipHash(input []byte) []byte {
 	number := siphash.Hash(0, 0, input)
 	output := make([]byte, 8)
@@ -50,6 +56,7 @@ func SipHash(input []byte) []byte {
 	return output
 }
 
+// New will create a new cuckoo filter.
 func New(options ...func(*GokooTable)) (*GokooTable, error) {
 
 	gt := &GokooTable{
