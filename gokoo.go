@@ -259,7 +259,7 @@ func (gt *GokooTable) add(i int, f []byte) bool {
 
 		// save fingerprint and return
 		gt.occupied[index] = true
-		gt.buckets[begin:cutoff] = f
+		copy(gt.buckets[begin:cutoff], f)
 		return true
 	}
 
@@ -284,7 +284,7 @@ func (gt *GokooTable) has(i int, f []byte) bool {
 		}
 
 		// check if values match
-		if gt.buckets[begin:cutoff] == f {
+		if bytes.Equal(gt.buckets[begin:cutoff], f) {
 			return true
 		}
 	}
@@ -310,7 +310,7 @@ func (gt *GokooTable) del(i int, f []byte) bool {
 		}
 
 		// check if values match
-		if gt.bucktes[begin:cutoff] == f {
+		if bytes.Equal(gt.buckets[begin:cutoff], f) {
 			gt.occupied[index] = false
 			return true
 		}
@@ -329,8 +329,9 @@ func (gt *GokooTable) evict(i int, f []byte) []byte {
 	cutoff := begin + gt.nBytes
 
 	// get the old fingerprint and replace
-	fOld := gt.buckets[begin:cutoff]
-	gt.buckets[begin:cutoff] = f
+	fOld := make([]byte, len(f))
+	copy(fOld, gt.buckets[begin:cutoff])
+	copy(gt.buckets[begin:cutoff], f)
 
 	// return old fingerprint
 	return fOld
