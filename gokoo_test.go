@@ -1,6 +1,9 @@
 package gokoo
 
 import (
+	"bytes"
+	crand "crypto/rand"
+	"math/rand"
 	"reflect"
 	"testing"
 )
@@ -66,8 +69,38 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestInsert(t *testing.T) {
-}
+func TestTruePositive(t *testing.T) {
 
-func TestRemove(t *testing.T) {
+	// create 100 items of random byte slices
+	items := make([]*bytes.Buffer, 100)
+	for i := 0; i < 100; i++ {
+
+		// create item and decide how many bytes we will write
+		nBytes := rand.Int() % 256
+		slice := make([]byte, nBytes)
+
+		// get the required number of random bytes
+		_, err := crand.Read(slice)
+		if err != nil {
+			t.Errorf("could not get random bytes")
+		}
+
+		// buffer the bytes as item so we can implement the item interface
+		items[i] = bytes.NewBuffer(slice)
+	}
+
+	// create new cuckoo filter
+	cf, _ := New()
+
+	// insert the 100 items into the cuckoo filter
+	for _, item := range items {
+		cf.Insert(item)
+	}
+
+	// check if the 100 items are in the cuckoo filter
+	for _, item := range items {
+		if !cf.Lookup(item) {
+			//t.Errorf("false negative: %v not found", i)
+		}
+	}
 }

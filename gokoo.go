@@ -24,8 +24,7 @@ type GokooTable struct {
 	nSlots   int
 	nBytes   int
 	nTries   int
-
-	bBytes   int
+	iBytes   int
 	occupied []bool
 	buckets  []byte
 	hash     GokooHash
@@ -71,9 +70,9 @@ func New(options ...func(*GokooTable)) (*GokooTable, error) {
 		option(gt)
 	}
 
-	gt.bBytes = int(math.Ceil(math.Sqrt(float64(gt.nBuckets))))
+	gt.iBytes = int(math.Ceil(math.Sqrt(float64(gt.nBuckets))))
 	hashLen := len(gt.hash([]byte{}))
-	if hashLen < gt.bBytes+gt.nBytes {
+	if hashLen < gt.iBytes+gt.nBytes {
 		return nil, errors.New("hash byte length insufficient for given" +
 			" number of buckets and fingerprint bytes")
 	}
@@ -221,17 +220,16 @@ func (gt *GokooTable) Remove(item GokooItem) bool {
 // primaryIndex will return the primary index for a given hash.
 func (gt *GokooTable) primaryIndex(hash []byte) int {
 
-	// create empty index
-	i1 := int(0)
+	// create 4 byte slice to use with Uint32 and define range of bytes to get
+	slice := make([]byte, 4)
+	bytes := hash[0:gt.iBytes]
 
-	// create a buffer around the hash bytes used for indexing buckets
-	buf := bytes.NewBuffer(hash[0:gt.bBytes])
-
-	// read the bytes into our index
-	binary.Write(buf, binary.LittleEndian, i1)
+	// copy bytes into placeholder and put into integer
+	copy(slice, bytes)
+	i1 := int(binary.LittleEndian.Uint32(slice))
 
 	// return the index modulated for number of buckets
-	return i1 % gt.nBuckets
+	return int(i1) % gt.nBuckets
 }
 
 // secondaryIndex will return the secondary index of any given index.
@@ -244,14 +242,15 @@ func (gt *GokooTable) secondaryIndex(i1 int, f []byte) int {
 	i2 = i1 ^ i2
 
 	// return the alternative index
-	return i2
+	return i2 % gt.nBuckets
 }
 
 // fingerPrint will return the fingerprint for a given hash.
 func (gt *GokooTable) fingerPrint(hash []byte) []byte {
 
 	// return the byte slice starting at right index and having right length
-	return hash[gt.bBytes:gt.nBytes]
+	f := hash[gt.iBytes : gt.iBytes+gt.nBytes]
+	return f
 }
 
 // add will add an item to the given bucket, if possible.
@@ -261,7 +260,7 @@ func (gt *GokooTable) add(i int, f []byte) bool {
 	for n := 0; n < gt.nSlots; n++ {
 
 		// start index and stop index
-		index := i + n
+		index := i*gt.nSlots + n
 		begin := index * gt.nBytes
 		cutoff := begin + gt.nBytes
 
