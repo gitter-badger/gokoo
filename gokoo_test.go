@@ -72,8 +72,9 @@ func TestNew(t *testing.T) {
 func TestTruePositive(t *testing.T) {
 
 	// create 100 items of random byte slices
-	items := make([]*bytes.Buffer, 100)
-	for i := 0; i < 100; i++ {
+	count := 100
+	items := make([]*bytes.Buffer, count)
+	for i := 0; i < count; i++ {
 
 		// create item and decide how many bytes we will write
 		nBytes := rand.Int() % 256
@@ -90,17 +91,36 @@ func TestTruePositive(t *testing.T) {
 	}
 
 	// create new cuckoo filter
-	cf, _ := New()
+	slots := 3
+	buckets := int(float32(count/slots) * 1.2)
+	cf, _ := New(
+		SetNumBuckets(buckets),
+		SetNumSlots(slots),
+	)
 
 	// insert the 100 items into the cuckoo filter
+	insertErr := 0
 	for _, item := range items {
-		cf.Insert(item)
+		if !cf.Insert(item) {
+			insertErr++
+		}
+	}
+
+	// check if all items were inserted
+	if insertErr != 0 {
+		t.Errorf("insert error: %v not inserted", insertErr)
 	}
 
 	// check if the 100 items are in the cuckoo filter
+	lookupErr := 0
 	for _, item := range items {
 		if !cf.Lookup(item) {
-			//t.Errorf("false negative: %v not found", i)
+			lookupErr++
 		}
+	}
+
+	// check if all lookups are ok
+	if lookupErr != 0 {
+		t.Errorf("lookup error: %v false negatives", lookupErr)
 	}
 }

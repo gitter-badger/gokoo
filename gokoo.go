@@ -64,6 +64,7 @@ func New(options ...func(*GokooTable)) (*GokooTable, error) {
 		nBuckets: 8,
 		nSlots:   4,
 		nBytes:   1,
+		nTries:   512,
 	}
 
 	for _, option := range options {
@@ -135,15 +136,13 @@ func (gt *GokooTable) Insert(item GokooItem) bool {
 
 	// get first index and try to add to that bucket
 	i1 := gt.primaryIndex(hash)
-	ok := gt.add(i1, f)
-	if ok {
+	if gt.add(i1, f) {
 		return true
 	}
 
 	// get second index and try to add to that bucket
 	i2 := gt.secondaryIndex(i1, f)
-	ok = gt.add(i2, f)
-	if ok {
+	if gt.add(i2, f) {
 		return true
 	}
 
@@ -161,8 +160,7 @@ func (gt *GokooTable) Insert(item GokooItem) bool {
 		// get the alternative index for the previous fingerprint
 		i1 = gt.secondaryIndex(i1, f)
 
-		ok = gt.add(i1, f)
-		if ok {
+		if gt.add(i1, f) {
 			return true
 		}
 	}
@@ -286,7 +284,7 @@ func (gt *GokooTable) has(i int, f []byte) bool {
 	for n := 0; n < gt.nSlots; n++ {
 
 		// start index and stop index
-		index := i + n
+		index := i*gt.nSlots + n
 		begin := index * gt.nBytes
 		cutoff := begin + gt.nBytes
 
@@ -312,7 +310,7 @@ func (gt *GokooTable) del(i int, f []byte) bool {
 	for n := 0; n < gt.nSlots; n++ {
 
 		// start and stop indexes
-		index := i + n
+		index := i*gt.nSlots + n
 		begin := index * gt.nBytes
 		cutoff := begin + gt.nBytes
 
@@ -337,7 +335,7 @@ func (gt *GokooTable) evict(i int, f []byte) []byte {
 
 	// pick a random slot for this bucket
 	slot := rand.Int() % gt.nSlots
-	begin := (i + slot) * gt.nBytes
+	begin := i*gt.nSlots*gt.nBytes + slot
 	cutoff := begin + gt.nBytes
 
 	// get the old fingerprint and replace
