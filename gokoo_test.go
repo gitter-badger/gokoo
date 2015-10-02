@@ -3,6 +3,7 @@ package gokoo
 import (
 	"bytes"
 	crand "crypto/rand"
+	"math"
 	"math/rand"
 	"reflect"
 	"testing"
@@ -69,7 +70,42 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestTruePositive(t *testing.T) {
+func TestIndexReversal(t *testing.T) {
+
+	// create 100 items of random byte slices
+	count := 100
+	items := make([]*bytes.Buffer, count)
+	for i := 0; i < count; i++ {
+
+		// create item and decide how many bytes we will write
+		nBytes := rand.Int() % 256
+		slice := make([]byte, nBytes)
+
+		// get the required number of random bytes
+		_, err := crand.Read(slice)
+		if err != nil {
+			t.Errorf("could not get random bytes")
+		}
+
+		// buffer the bytes as item so we can implement the item interface
+		items[i] = bytes.NewBuffer(slice)
+	}
+
+	// get first and second hash and compare
+	gt, _ := New()
+	for _, item := range items {
+		hash := gt.hash(item.Bytes())
+		f := gt.fingerPrint(hash)
+		i1 := gt.primaryIndex(hash)
+		i2 := gt.secondaryIndex(i1, f)
+		i1rev := gt.secondaryIndex(i2, f)
+		if i1 != i1rev {
+			t.Errorf("primary index mismatch: %v != %v", i1, i1rev)
+		}
+	}
+}
+
+func TestInsertLookupRemove(t *testing.T) {
 
 	// create 100 items of random byte slices
 	count := 100
@@ -92,7 +128,7 @@ func TestTruePositive(t *testing.T) {
 
 	// create new cuckoo filter
 	slots := 3
-	buckets := int(float32(count/slots) * 1.2)
+	buckets := int(math.Ceil(float64(count/slots) * 1.2))
 	cf, _ := New(
 		SetNumBuckets(buckets),
 		SetNumSlots(slots),
@@ -111,7 +147,7 @@ func TestTruePositive(t *testing.T) {
 		t.Errorf("insert error: %v not inserted", insertErr)
 	}
 
-	// check if the 100 items are in the cuckoo filter
+	// lookup the 100 items are in the cuckoo filter
 	lookupErr := 0
 	for _, item := range items {
 		if !cf.Lookup(item) {
@@ -122,5 +158,18 @@ func TestTruePositive(t *testing.T) {
 	// check if all lookups are ok
 	if lookupErr != 0 {
 		t.Errorf("lookup error: %v false negatives", lookupErr)
+	}
+
+	// delete all 100 items from the cuckoo filter
+	deleteErr := 0
+	for _, item := range items {
+		if !cf.Remove(item) {
+			deleteErr++
+		}
+	}
+
+	// check if all items were deleted
+	if deleteErr != 0 {
+		t.Errorf("delete error: %v not deleted", deleteErr)
 	}
 }

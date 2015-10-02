@@ -157,9 +157,8 @@ func (gt *GokooTable) Insert(item GokooItem) bool {
 		// insert f into i1 and get the previous fingerprint
 		f = gt.evict(i1, f)
 
-		// get the alternative index for the previous fingerprint
+		// get the alternative index for ejected fingerprint and add it
 		i1 = gt.secondaryIndex(i1, f)
-
 		if gt.add(i1, f) {
 			return true
 		}
@@ -200,7 +199,7 @@ func (gt *GokooTable) Remove(item GokooItem) bool {
 	f := gt.fingerPrint(hash)
 
 	// get the first index and check if we can delete
-	i1 := gt.primaryIndex(f)
+	i1 := gt.primaryIndex(hash)
 	if gt.del(i1, f) {
 		return true
 	}
@@ -215,6 +214,14 @@ func (gt *GokooTable) Remove(item GokooItem) bool {
 	return false
 }
 
+// fingerPrint will return the fingerprint for a given hash.
+func (gt *GokooTable) fingerPrint(hash []byte) []byte {
+
+	// return the byte slice starting at right index and having right length
+	f := hash[gt.iBytes : gt.iBytes+gt.nBytes]
+	return f
+}
+
 // primaryIndex will return the primary index for a given hash.
 func (gt *GokooTable) primaryIndex(hash []byte) int {
 
@@ -227,7 +234,7 @@ func (gt *GokooTable) primaryIndex(hash []byte) int {
 	i1 := int(binary.LittleEndian.Uint32(slice))
 
 	// return the index modulated for number of buckets
-	return int(i1) % gt.nBuckets
+	return i1 % gt.nBuckets
 }
 
 // secondaryIndex will return the secondary index of any given index.
@@ -241,14 +248,6 @@ func (gt *GokooTable) secondaryIndex(i1 int, f []byte) int {
 
 	// return the alternative index
 	return i2 % gt.nBuckets
-}
-
-// fingerPrint will return the fingerprint for a given hash.
-func (gt *GokooTable) fingerPrint(hash []byte) []byte {
-
-	// return the byte slice starting at right index and having right length
-	f := hash[gt.iBytes : gt.iBytes+gt.nBytes]
-	return f
 }
 
 // add will add an item to the given bucket, if possible.
