@@ -250,6 +250,16 @@ func (gt *GokooTable) secondaryIndex(i1 int, f []byte) int {
 	return i2 % gt.nBuckets
 }
 
+// access will provide indexes for occupied and bucket to use for access.
+func (gt *GokooTable) access(i int, n int) (int, int, int) {
+
+	index := i*gt.nSlots + n
+	begin := index * gt.nBytes
+	end := begin + gt.nBytes
+
+	return index, begin, end
+}
+
 // add will add an item to the given bucket, if possible.
 func (gt *GokooTable) add(i int, f []byte) bool {
 
@@ -257,18 +267,16 @@ func (gt *GokooTable) add(i int, f []byte) bool {
 	for n := 0; n < gt.nSlots; n++ {
 
 		// start index and stop index
-		index := i*gt.nSlots + n
-		begin := index * gt.nBytes
-		cutoff := begin + gt.nBytes
+		o, b, e := gt.access(i, n)
 
 		// check if spot is free
-		if gt.occupied[index] {
+		if gt.occupied[o] {
 			continue
 		}
 
 		// save fingerprint and return
-		gt.occupied[index] = true
-		copy(gt.buckets[begin:cutoff], f)
+		gt.occupied[o] = true
+		copy(gt.buckets[b:e], f)
 		return true
 	}
 
@@ -283,17 +291,15 @@ func (gt *GokooTable) has(i int, f []byte) bool {
 	for n := 0; n < gt.nSlots; n++ {
 
 		// start index and stop index
-		index := i*gt.nSlots + n
-		begin := index * gt.nBytes
-		cutoff := begin + gt.nBytes
+		o, b, e := gt.access(i, n)
 
 		// check if spot is used
-		if !gt.occupied[index] {
+		if !gt.occupied[o] {
 			continue
 		}
 
 		// check if values match
-		if bytes.Equal(gt.buckets[begin:cutoff], f) {
+		if bytes.Equal(gt.buckets[b:e], f) {
 			return true
 		}
 	}
@@ -309,18 +315,16 @@ func (gt *GokooTable) del(i int, f []byte) bool {
 	for n := 0; n < gt.nSlots; n++ {
 
 		// start and stop indexes
-		index := i*gt.nSlots + n
-		begin := index * gt.nBytes
-		cutoff := begin + gt.nBytes
+		o, b, e := gt.access(i, n)
 
 		// check if spot is used
-		if !gt.occupied[index] {
+		if !gt.occupied[o] {
 			continue
 		}
 
 		// check if values match
-		if bytes.Equal(gt.buckets[begin:cutoff], f) {
-			gt.occupied[index] = false
+		if bytes.Equal(gt.buckets[b:e], f) {
+			gt.occupied[o] = false
 			return true
 		}
 	}
@@ -333,14 +337,13 @@ func (gt *GokooTable) del(i int, f []byte) bool {
 func (gt *GokooTable) evict(i int, f []byte) []byte {
 
 	// pick a random slot for this bucket
-	slot := rand.Int() % gt.nSlots
-	begin := i*gt.nSlots*gt.nBytes + slot
-	cutoff := begin + gt.nBytes
+	n := rand.Int() % gt.nSlots
+	_, b, e := gt.access(i, n)
 
 	// get the old fingerprint and replace
 	fOld := make([]byte, len(f))
-	copy(fOld, gt.buckets[begin:cutoff])
-	copy(gt.buckets[begin:cutoff], f)
+	copy(fOld, gt.buckets[b:e])
+	copy(gt.buckets[b:e], f)
 
 	// return old fingerprint
 	return fOld
