@@ -6,6 +6,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"math"
+
+	"github.com/dchest/siphash"
 )
 
 type GokooItem interface {
@@ -31,6 +33,13 @@ type GokooTable struct {
 func Sha256Hash(input []byte) []byte {
 	array := sha256.Sum256(input)
 	return array[:]
+}
+
+func SipHash(input []byte) []byte {
+	number := siphash.Hash(0, 0, input)
+	output := make([]byte, 8)
+	binary.LittleEndian.PutUint64(output, number)
+	return output
 }
 
 func New(options ...func(*GokooTable)) (*GokooTable, error) {
