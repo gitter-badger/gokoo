@@ -114,8 +114,8 @@ func SetNumTries(nTries int) func(*GokooTable) {
 	}
 }
 
-// Add will try to add an item to the cuckoo table.
-func (gt *GokooTable) Add(item GokooItem) bool {
+// Insert will try to add an item to the cuckoo table.
+func (gt *GokooTable) Insert(item GokooItem) bool {
 
 	// get hash and fingerprint
 	hash := gt.hash(item.Bytes())
@@ -143,10 +143,10 @@ func (gt *GokooTable) Add(item GokooItem) bool {
 	// try for max tries number of time to kick back
 	for n := 0; n < gt.nTries; n++ {
 
-		// insert f into i1 and get the previous finger print
+		// insert f into i1 and get the previous fingerprint
 		f = gt.evict(i1, f)
 
-		// get the alternative index for the previous finger print
+		// get the alternative index for the previous fingerprint
 		i1 = gt.secondaryIndex(i1, f)
 
 		ok = gt.add(i1, f)
@@ -156,6 +156,52 @@ func (gt *GokooTable) Add(item GokooItem) bool {
 	}
 
 	// at this point we did not manage to insert it without eviction for nTries
+	return false
+}
+
+// Lookup will check if the cuckoo table contains the given item.
+func (gt *GokooTable) Lookup(item GokooItem) bool {
+
+	// get the hash of the item bytes and the fingerprint
+	hash := gt.hash(item.Bytes())
+	f := gt.fingerPrint(hash)
+
+	// get the first index and check if it contains the item
+	i1 := gt.primaryIndex(hash)
+	if gt.has(i1, f) {
+		return true
+	}
+
+	// get the second index and check if it contains the item
+	i2 := gt.secondaryIndex(i1, f)
+	if gt.has(i2, f) {
+		return true
+	}
+
+	// item wasn't found
+	return false
+}
+
+// Delete will remove the item from the cuckoo table.
+func (gt *GokooTable) Remove(item GokooItem) bool {
+
+	// get the hash of the item and the fingerprint
+	hash := gt.hash(item.Bytes())
+	f := gt.fingerPrint(hash)
+
+	// get the first index and check if we can delete
+	i1 := gt.primaryIndex(f)
+	if gt.del(i1, f) {
+		return true
+	}
+
+	// get the second index and check if we can delete
+	i2 := gt.secondaryIndex(i1, f)
+	if gt.del(i2, f) {
+		return true
+	}
+
+	// item could not be deleted
 	return false
 }
 
@@ -178,19 +224,39 @@ func (gt *GokooTable) primaryIndex(hash []byte) int {
 // secondaryIndex will return the secondary index of any given index.
 func (gt *GokooTable) secondaryIndex(i1 int, f []byte) int {
 
-	// get the xxhash of the finger print
+	// get the xxhash of the fingerprint
 	i2 := int(xxhash.Checksum32(f))
 
-	// XOR the primary index with the hash of the finger print
+	// XOR the primary index with the hash of the fingerprint
 	i2 = i1 ^ i2
 
 	// return the alternative index
 	return i2
 }
 
-// fingerPrint will return the finger print for a given hash.
+// fingerPrint will return the fingerprint for a given hash.
 func (gt *GokooTable) fingerPrint(hash []byte) []byte {
 
 	// return the byte slice starting at right index and having right length
 	return hash[gt.bBytes:gt.nBytes]
+}
+
+// add will add an item to the given bucket, if possible.
+func (gt *GokooTable) add(i int, f []byte) bool {
+	return true
+}
+
+// has will check if a given bucket contains fingerprint f.
+func (gt *GokooTable) has(i int, f []byte) bool {
+	return true
+}
+
+// del will delete an item from the given bucket, if possible.
+func (gt *GokooTable) del(i int, f []byte) bool {
+	return true
+}
+
+// evict will evict a fingerprint from the bucket to insert the new one.
+func (gt *GokooTable) evict(i int, f []byte) []byte {
+	return []byte{}
 }
