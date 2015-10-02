@@ -6,8 +6,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"math"
+	"math/rand"
 
 	"github.com/dchest/siphash"
+	"github.com/vova616/xxhash"
 )
 
 type GokooItem interface {
@@ -113,14 +115,48 @@ func SetNumTries(nTries int) func(*GokooTable) {
 }
 
 // Add will try to add an item to the cuckoo table.
-func (gt *GokooTable) Add(item GokooItem) {
+func (gt *GokooTable) Add(item GokooItem) bool {
 
-	// get the hashed bytes for our item
+	// get hash and fingerprint
 	hash := gt.hash(item.Bytes())
-
-	// get finger print and primary index
 	f := gt.fingerPrint(hash)
+
+	// get first index and try to add to that bucket
 	i1 := gt.primaryIndex(hash)
+	ok := gt.add(i1, f)
+	if ok {
+		return true
+	}
+
+	// get second index and try to add to that bucket
+	i2 := gt.secondaryIndex(i1, f)
+	ok = gt.add(i2, f)
+	if ok {
+		return true
+	}
+
+	// randomly pick i1 or i2 and keep evicting in that direction
+	if rand.Int()%2 == 1 {
+		i1 = i2
+	}
+
+	// try for max tries number of time to kick back
+	for n := 0; n < gt.nTries; n++ {
+
+		// insert f into i1 and get the previous finger print
+		f = gt.evict(i1, f)
+
+		// get the alternative index for the previous finger print
+		i1 = gt.secondaryIndex(i1, f)
+
+		ok = gt.add(i1, f)
+		if ok {
+			return true
+		}
+	}
+
+	// at this point we did not manage to insert it without eviction for nTries
+	return false
 }
 
 // primaryIndex will return the primary index for a given hash.
@@ -140,13 +176,16 @@ func (gt *GokooTable) primaryIndex(hash []byte) int {
 }
 
 // secondaryIndex will return the secondary index of any given index.
-func (gt *GokooTable) secondaryIndex(i1 int) int {
+func (gt *GokooTable) secondaryIndex(i1 int, f []byte) int {
 
-	// XOR the first index with zero
-	i2 := i1 ^ 0
+	// get the xxhash of the finger print
+	i2 := int(xxhash.Checksum32(f))
 
-	// return the alternative index modulated for number of buckets
-	return i2 % gt.nBuckets
+	// XOR the primary index with the hash of the finger print
+	i2 = i1 ^ i2
+
+	// return the alternative index
+	return i2
 }
 
 // fingerPrint will return the finger print for a given hash.
