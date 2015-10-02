@@ -32,6 +32,12 @@ type GokooTable struct {
 	buf      *bytes.Buffer
 }
 
+func DummyHash(input []byte) []byte {
+	output := make([]byte, 8)
+	copy(output, input)
+	return output
+}
+
 func Sha256Hash(input []byte) []byte {
 	array := sha256.Sum256(input)
 	return array[:]
@@ -71,8 +77,8 @@ func New(options ...func(*GokooTable)) (*GokooTable, error) {
 	return gt, nil
 }
 
-// EnableRebuild will allow the table to automatically rebuild if it is full.
-func EnableRebuild(rebuild bool) func(*GokooTable) {
+// SetRebuild will allow the table to automatically rebuild if it is full.
+func SetRebuild(rebuild bool) func(*GokooTable) {
 	return func(gt *GokooTable) {
 		gt.rebuild = rebuild
 	}
