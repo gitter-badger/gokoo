@@ -1,0 +1,15 @@
+{
+	"ImportPath": "github.com/awishformore/gokoo",
+	"GoVersion": "go1.4.2",
+	"Deps": [
+		{
+			"ImportPath": "github.com/dchest/siphash",
+			"Comment": "v1.0.0-23-g1117227",
+			"Rev": "1117227b3bb1c54cb5035ea77fde1ffa5ea11e4c"
+		},
+		{
+			"ImportPath": "github.com/vova616/xxhash",
+			"Rev": "f0a9a8b74d487f9563a527daf3bd6b4fbd3f5d00"
+		}
+	]
+}
